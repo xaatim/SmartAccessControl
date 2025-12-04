@@ -1,12 +1,13 @@
+import colorama
 import numpy as np
 from insightface.app import FaceAnalysis
 import cv2
 from saveAlertImage import save_alert_image
 import time
 DETECTION_INTERVAL = 15  # Seconds between intruder alerts
+from colorama import Fore, Back, Style
 
-
-
+colorama.init()
 EMBEDDING_THRESHOLD = 0.7  # Minimum similarity score for recognition
 
 
@@ -24,11 +25,11 @@ def load_known_embeddings():
         embeddings = np.load(embeddings_path)
         labels = np.load(labels_path)
         
-        print("✅ Known embeddings loaded:", embeddings.shape)
+        print(Fore.GREEN + "Known embeddings loaded:", embeddings.shape)
         return embeddings, labels
         
     except Exception as e:
-        print(f"❌ Error loading embeddings: {e}")
+        print(Fore.RED + f"Error loading embeddings: {e}")
         raise
 
 # Initialize face analysis and load known faces
