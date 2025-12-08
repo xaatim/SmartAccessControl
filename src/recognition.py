@@ -1,7 +1,7 @@
 import colorama
 import numpy as np
 import cv2
-from src.saveAlertImage import save_alert_image
+from src.save_alert_image import save_alert_image
 import time
 from colorama import Fore
 
@@ -52,7 +52,7 @@ def recognize_face(face_embedding):
 
 
 def process_detected_face(frame, face, task_queue, last_alert_time, purpose):
-
+    print("last time:", last_alert_time)
     anomalyDetected = False
     bbox = face.bbox.astype(int)
     label, score = recognize_face(face.embedding)
