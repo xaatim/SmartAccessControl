@@ -7,7 +7,7 @@ from src.recognition import process_detected_face
 from queue import Queue
 from colorama import Fore
 from datetime import datetime
-from src.car_identification import IdentifyCar
+from src.car_identification import IdentifyCar,plate_list
 from src.save_alert_image import go
 
 numCameras = 3
@@ -62,9 +62,9 @@ def restriction_handler(task_queue):
     global last_alert_time
     global stop_threads
     while not stop_threads:
-        ret, frame = caps[0].read()
+        ret, frame = caps[2].read()
         if not ret:
-            caps[0] = handle_camera_failure(caps[0], cameraIndex[0])
+            caps[2] = handle_camera_failure(caps[2], cameraIndex[2])
             continue
 
         Faces = app_insight.get(frame)
@@ -114,13 +114,23 @@ def attendence_handler(task_queue):
 
 def car_identification_handler():
     global stop_threads
-    global last_alert_time
+    
+    last_detected_plate = None 
+
     while not stop_threads:
-        retCam3, frame3 = caps[2].read()
+        retCam3, frame3 = caps[0].read() 
         if not retCam3:
-            caps[2] = handle_camera_failure(caps[2], cameraIndex[2])
+            caps[0] = handle_camera_failure(caps[0], cameraIndex[0])
             continue
-        IdentifyCar(frame3)
+            
+        detected_plate = IdentifyCar(frame3)
+
+        if detected_plate and detected_plate != last_detected_plate:
+            print(Fore.GREEN + f"CAR DETECTED: {detected_plate}")
+            last_detected_plate = detected_plate
+        
+        if detected_plate is None and len(plate_list) == 0:
+            last_detected_plate = None
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
             stop_threads = True
@@ -132,16 +142,20 @@ def controlUnit(task_queue):
 
     try:
         try:
-            t1 = go(restriction_handler, task_queue)
-            t2 = go(attendence_handler, task_queue)
+            # t1 = go(restriction_handler, task_queue)
+            # t2 = go(attendence_handler, task_queue)
             t3 = go(car_identification_handler)
 
-            t1.join()
-            t2.join()
+            # t1.join()
+            # t2.join()
             t3.join()
-
+        except KeyboardInterrupt:
+          print("exit0")
         except Exception as e:
             print(e)
+
+    except KeyboardInterrupt:
+        print("exit 0")
 
     finally:
         for cap in caps:
