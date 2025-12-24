@@ -1,6 +1,8 @@
 #include <Arduino.h>
 #include <driver/i2s.h>
 #include <WiFi.h>
+#include <WiFiUdp.h>
+#include <esp_wifi.h>
 
 #include "Application.h"
 #include "I2SMEMSSampler.h"
@@ -11,85 +13,102 @@
 #include "EspNowTransport.h"
 #include "OutputBuffer.h"
 #include "config.h"
-
-// Using Generic LED for ESP32 Dev Module
 #include "GenericDevBoardIndicatorLed.h"
 
-static void application_task(void *param)
-{
-  // delegate onto the application
+// UDP for sending commands
+WiFiUDP udp;
+const int TARGET_PORT = 4210;
+
+// Debounce
+unsigned long last_command_time = 0;
+
+static void application_task(void *param) {
   Application *application = reinterpret_cast<Application *>(param);
   application->loop();
 }
 
-Application::Application()
-{
+void Application::send_remote_open_command() {
+  unsigned long now = millis();
+  if (now - last_command_time > 1000) {
+    Serial.println("Action: Broadcasting OPEN command...");
+    
+    // Broadcast "OPEN" to the network. Restricted Unit is listening on 4210.
+    udp.beginPacket(IPAddress(255, 255, 255, 255), TARGET_PORT);
+    udp.print("OPEN");
+    udp.endPacket();
+    
+    last_command_time = now;
+    
+    m_indicator_led->set_is_flashing(true, 0xff0000);
+    delay(200);
+    m_indicator_led->set_is_flashing(false, 0x00ff00);
+  }
+}
+
+void Application::handle_remote_button() {
+  if (digitalRead(REMOTE_OPEN_BUTTON_PIN) == REMOTE_OPEN_BUTTON_ACTIVE_LEVEL) {
+    send_remote_open_command();
+  }
+}
+
+Application::Application() {
   m_output_buffer = new OutputBuffer(300 * 16);
 
-  // --- FIX: USE I2S_NUM_1 FOR MIC ---
 #ifdef USE_I2S_MIC_INPUT
   m_input = new I2SMEMSSampler(I2S_NUM_1, i2s_mic_pins, i2s_mic_Config, 128);
 #else
   m_input = new ADCSampler(ADC_UNIT_1, ADC1_CHANNEL_7, i2s_adc_config);
 #endif
 
-  // --- Speaker uses I2S_NUM_0 ---
 #ifdef USE_I2S_SPEAKER_OUTPUT
   m_output = new I2SOutput(I2S_NUM_0, i2s_speaker_pins);
 #else
   m_output = new DACOutput(I2S_NUM_0);
 #endif
 
-#ifdef USE_ESP_NOW
-  m_transport = new EspNowTransport(m_output_buffer, ESP_NOW_WIFI_CHANNEL);
-#else
-  m_transport = new UdpTransport(m_output_buffer);
-#endif
-
-  m_transport->set_header(TRANSPORT_HEADER_SIZE, transport_header);
-
+  m_transport = nullptr;
   m_indicator_led = new GenericDevBoardIndicatorLed();
 
-  if (I2S_SPEAKER_SD_PIN != -1)
-  {
-    pinMode(I2S_SPEAKER_SD_PIN, OUTPUT);
-  }
+  if (I2S_SPEAKER_SD_PIN != -1) pinMode(I2S_SPEAKER_SD_PIN, OUTPUT);
 }
 
-void Application::begin()
-{
+void Application::begin() {
   m_indicator_led->set_default_color(0);
   m_indicator_led->set_is_flashing(true, 0xff0000);
   m_indicator_led->begin();
 
-  Serial.print("My IDF Version is: ");
-  Serial.println(esp_get_idf_version());
+  pinMode(REMOTE_OPEN_BUTTON_PIN, INPUT_PULLUP);
 
-  WiFi.mode(WIFI_STA);
-#ifndef USE_ESP_NOW
+  // 1. Connect to WiFi
+  Serial.print("Connecting to WiFi");
+  WiFi.mode(WIFI_AP_STA);
   WiFi.begin(WIFI_SSID, WIFI_PSWD);
-  if (WiFi.waitForConnectResult() != WL_CONNECTED)
-  {
-    Serial.println("Connection Failed! Rebooting...");
-    delay(5000);
-    ESP.restart();
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
   }
+  Serial.println("\nWiFi Connected!");
+  
+  // 2. THE FIX: Disable Power Save
   WiFi.setSleep(WIFI_PS_NONE);
-  Serial.print("My IP Address is: ");
-  Serial.println(WiFi.localIP());
-#else
-  WiFi.disconnect();
-#endif
-  Serial.print("My MAC Address is: ");
-  Serial.println(WiFi.macAddress());
-  
+
+  // 3. Init ESP-NOW on Router Channel
+  int32_t channel = WiFi.channel();
+  Serial.printf("Router Channel: %d. Configuring ESP-NOW.\n", channel);
+
+  #ifdef USE_ESP_NOW
+    m_transport = new EspNowTransport(m_output_buffer, channel);
+  #else
+    m_transport = new UdpTransport(m_output_buffer);
+  #endif
+
+  m_transport->set_header(TRANSPORT_HEADER_SIZE, transport_header);
   m_transport->begin();
-  
+
   m_indicator_led->set_default_color(0x00ff00);
   m_indicator_led->set_is_flashing(false, 0x00ff00);
   
   pinMode(GPIO_TRANSMIT_BUTTON, INPUT_PULLDOWN);
-  
   m_output->start(SAMPLE_RATE);
   m_output_buffer->flush();
   
@@ -97,57 +116,38 @@ void Application::begin()
   xTaskCreate(application_task, "application_task", 8192, this, 1, &task_handle);
 }
 
-void Application::loop()
-{
+void Application::loop() {
   int16_t *samples = reinterpret_cast<int16_t *>(malloc(sizeof(int16_t) * 128));
   
-  while (true)
-  {
-    if (digitalRead(GPIO_TRANSMIT_BUTTON))
-    {
-      Serial.println("Started transmitting");
-      m_indicator_led->set_is_flashing(true, 0xff0000);
-      
-      // Stop Speaker to prevent feedback/conflicts
+  while (true) {
+    handle_remote_button(); // Check if "Open" button pressed
+
+    if (digitalRead(GPIO_TRANSMIT_BUTTON)) {
       m_output->stop();
-      // Start Mic
       m_input->start();
-      
       unsigned long start_time = millis();
-      while (millis() - start_time < 1000 || digitalRead(GPIO_TRANSMIT_BUTTON))
-      {
+      while (millis() - start_time < 1000 || digitalRead(GPIO_TRANSMIT_BUTTON)) {
+        handle_remote_button(); // Keep checking button
         int samples_read = m_input->read(samples, 128);
-        for (int i = 0; i < samples_read; i++)
-        {
+        for (int i = 0; i < samples_read; i++) {
           m_transport->add_sample(samples[i]);
-          // Serial.println(samples[i]);
         }
       }
-      
       m_transport->flush();
-      Serial.println("Finished transmitting");
-      m_indicator_led->set_is_flashing(false, 0xff0000);
-      
       m_input->stop();
       m_output->start(SAMPLE_RATE);
     }
     
-    // Receiving Mode
-    if (I2S_SPEAKER_SD_PIN != -1)
-    {
-      digitalWrite(I2S_SPEAKER_SD_PIN, HIGH);
-    }
+    if (I2S_SPEAKER_SD_PIN != -1) digitalWrite(I2S_SPEAKER_SD_PIN, HIGH);
     
     unsigned long start_time = millis();
-    while (millis() - start_time < 1000 || !digitalRead(GPIO_TRANSMIT_BUTTON))
-    {
+    while (millis() - start_time < 100 || !digitalRead(GPIO_TRANSMIT_BUTTON)) {
+      handle_remote_button();
+      if (digitalRead(GPIO_TRANSMIT_BUTTON)) break;
       m_output_buffer->remove_samples(samples, 128);
       m_output->write(samples, 128);
     }
     
-    if (I2S_SPEAKER_SD_PIN != -1)
-    {
-      digitalWrite(I2S_SPEAKER_SD_PIN, LOW);
-    }
+    if (I2S_SPEAKER_SD_PIN != -1) digitalWrite(I2S_SPEAKER_SD_PIN, LOW);
   }
 }
