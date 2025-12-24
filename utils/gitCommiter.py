@@ -2,7 +2,7 @@ from git import Repo
 import os
 
 # Path to your local GitHub repo
-repo_path = r"C:\Users\Hatim\Documents\Github\SmartAccessControl"
+repo_path = "/home/hatim/Documents/Github/SmartAccessControl"
 commit_message = "changes"
 
 # Open repo
