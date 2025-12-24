@@ -9,15 +9,14 @@
 
 #define SAMPLE_RATE 16000
 
-// --- HARDWARE WIRING ---
-// Button to remotely open the door (Pin 33)
+// --- BUTTONS ---
+// 1. Standard Remote Open (Pin 33)
 #define REMOTE_OPEN_BUTTON_PIN GPIO_NUM_33
 #define REMOTE_OPEN_BUTTON_ACTIVE_LEVEL LOW 
 
-// Pin 32 is unused on this unit, but defined to prevent errors
-#define DOOR_RELAY_PIN GPIO_NUM_32
-#define DOOR_RELAY_ACTIVE_LEVEL LOW
-#define DOOR_RELAY_IDLE_LEVEL HIGH
+// 2. Safety Override Button (Pin 32) - NEW
+#define SAFETY_OVERRIDE_BUTTON_PIN GPIO_NUM_32
+#define SAFETY_OVERRIDE_BUTTON_ACTIVE_LEVEL LOW 
 
 // --- AUDIO SETTINGS ---
 #define USE_I2S_MIC_INPUT
@@ -38,7 +37,7 @@
 // Push-to-Talk Button (Pin 23)
 #define GPIO_TRANSMIT_BUTTON 23
 
-// --- CRITICAL: ENABLE ESP_NOW ---
+// --- TRANSPORT ---
 #define USE_ESP_NOW
 
 #define TRANSPORT_HEADER_SIZE 3

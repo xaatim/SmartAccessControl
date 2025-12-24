@@ -18,8 +18,10 @@ private:
     OutputBuffer *m_output_buffer;
     IndicatorLed *m_indicator_led;
 
-    void handle_remote_button();     // Check button 33
-    void send_remote_open_command(); // Send WiFi signal
+    // Helper functions
+    void handle_remote_button();  // Pin 33
+    void handle_safety_button();  // Pin 32 (New Override)
+    void send_remote_open_command();
 
 public:
     Application();
