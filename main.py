@@ -73,9 +73,9 @@ def main():
         # --- Start All Threads ---
         # for t in threads:
         #     t.start()
-        # t_car.start()
+        t_car.start()
         # t_attendance.start()
-        t_restriction.start()
+        # t_restriction.start()
         
 
         
@@ -93,9 +93,9 @@ def main():
         # for t in threads:
         #     t.join()
         
-                # t_car.join()
+        t_car.join()
         # t_attendance.join()
-        t_restriction.join()
+        # t_restriction.join()
         
         print("Releasing resources...")
         if caps:
