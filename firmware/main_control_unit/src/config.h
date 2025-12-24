@@ -3,7 +3,7 @@
 #include <driver/gpio.h>
 
 // WiFi credentials (not used if ESP-NOW is on, but good to have)
-#define WIFI_SSID "Catiiqi_5g"
+#define WIFI_SSID "Catiiqi_2.4G"
 #define WIFI_PSWD "26252423"
 
 // sample rate for the system
