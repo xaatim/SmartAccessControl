@@ -1,0 +1,12 @@
+{
+	"folders": [
+		{
+			"path": "../.."
+		},
+		{
+			"name": "attendance_unit",
+			"path": "."
+		}
+	],
+  "settings": {}
+}
