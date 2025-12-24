@@ -35,7 +35,7 @@
 #define GPIO_TRANSMIT_BUTTON 23
 
 // Which transport do you want to use?
-// --- FIX 3: UNCOMMENT THIS for Walkie Talkie mode ---
+// --- Enable ESP-NOW intercom mode ---
 #define USE_ESP_NOW
 
 // On which wifi channel (1-11) should ESP-Now transmit?
