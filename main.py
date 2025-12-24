@@ -1,167 +1,108 @@
+import threading
 import time
-
-import colorama
-import cv2
-from insightface.app import FaceAnalysis
-from src.recognition import process_detected_face
 from queue import Queue
-from colorama import Fore
-from datetime import datetime
-from src.car_identification import IdentifyCar,plate_list
-from src.save_alert_image import go
+import colorama
+from insightface.app import FaceAnalysis
+import cv2
 
-numCameras = 3
-cameraIndex = [0, 1, 2]
-caps = []
-stop_threads = False
-colorama.init()
-app_insight = FaceAnalysis(
-    name='buffalo_s',
-    allowed_modules=['detection', 'recognition']
-)
-app_insight.prepare(ctx_id=-1)
+# --- Import our modules ---
+from src.camera_utils import initialize_cameras
+# Assuming you have this file from our previous steps
+from src.attendance_service import run_attendance_service 
+from src.restriction_service import run_restriction_service  
+from src.car_service import run_car_service                  
 
-last_alert_time = 0
+# --- Config ---
+HOST_IP = '0.0.0.0'
+PORT = 65432
+NUM_CAMERAS = 3
+# Mapping: [Car_Cam, Attendance_Cam, Security_Cam]
+# Your old code used index 0 for Car, 1 for Attendance, 2 for Restriction
+CAMERA_INDICES = [0, 1, 2] 
 
-
-def initialize_cameras():
-
-    try:
-        for i in range(numCameras):
-            camIndex = i
-            cap = cv2.VideoCapture(camIndex, cv2.CAP_DSHOW)
-            # cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))  # type:ignore
-            cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-            cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
-            caps.append(cap)
-
-    except Exception as e:
-        print(e)
-
-
-def handle_camera_failure(cap, cameraIndex):
-    global last_alert_time
-
-    trials = 0
-    print(Fore.RED + "Camera failure detected - attempting recovery...")
-    cap.release()
-    time.sleep(0.5)
-
-    while trials <= 30:
-        print(Fore.WHITE + f"Testing camera index {cameraIndex}")
-        new_cap = cv2.VideoCapture(cameraIndex, cv2.CAP_DSHOW)
-
-        if new_cap.isOpened():
-            return new_cap
-        time.sleep(trials+1)
-        trials += 1
-    raise RuntimeError(Fore.RED + "Failed to initialize any camera")
-
-
-def restriction_handler(task_queue):
-    global last_alert_time
-    global stop_threads
-    while not stop_threads:
-        ret, frame = caps[2].read()
-        if not ret:
-            caps[2] = handle_camera_failure(caps[2], cameraIndex[2])
-            continue
-
-        Faces = app_insight.get(frame)
-
-        for face in Faces:
-            last_alert_time, anomlay_detected, _ = process_detected_face(
-                frame, face, task_queue, last_alert_time, purpose='authorization')
-
-            if anomlay_detected:
-                print("unauthrized personnel")
-
-        cv2.imshow("test", frame)
-
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            stop_threads = True
-            break
-
-
-def attendence_handler(task_queue):
-    global stop_threads
-    global last_alert_time
-    while not stop_threads:
-        ret, frame = caps[1].read()
-        if not ret:
-            caps[1] = handle_camera_failure(caps[1], cameraIndex[1])
-            continue
-
-        Faces = app_insight.get(frame)
-
-        for face in Faces:
-            last_alert_time, AnomalyDetected, Labels = process_detected_face(
-                frame, face, task_queue, last_alert_time, purpose='attendence'
-            )
-
-            if AnomalyDetected:
-                print("unregistred employee")
-            elif not AnomalyDetected:
-                attendenceTime = datetime.now().strftime('%Y%m%d_%H%M%S')
-                print(f"{Labels}: attended at {attendenceTime}")
-
-        cv2.imshow("test_frame2", frame)
-
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            stop_threads = True
-            break
-
-
-def car_identification_handler():
-    global stop_threads
+def main():
+    colorama.init()
     
-    last_detected_plate = None 
+    # 1. AI Initialization
+    print("Initializing InsightFace...")
+    app_insight = FaceAnalysis(name='antelopev2', allowed_modules=['detection', 'recognition'])
+    app_insight.prepare(ctx_id=-1)
 
-    while not stop_threads:
-        retCam3, frame3 = caps[0].read() 
-        if not retCam3:
-            caps[0] = handle_camera_failure(caps[0], cameraIndex[0])
-            continue
-            
-        detected_plate = IdentifyCar(frame3)
+    # 2. Camera Initialization
+    print("Initializing Cameras...")
+    caps = initialize_cameras(NUM_CAMERAS)
+    if not caps or len(caps) < NUM_CAMERAS:
+        print("CRITICAL: Not enough cameras found.")
+        # If testing with fewer cameras, comment out the return
+        # return 
 
-        if detected_plate and detected_plate != last_detected_plate:
-            print(Fore.GREEN + f"CAR DETECTED: {detected_plate}")
-            last_detected_plate = detected_plate
-        
-        if detected_plate is None and len(plate_list) == 0:
-            last_detected_plate = None
+    # 3. Thread Control
+    stop_event = threading.Event()
+    task_queue = Queue() 
 
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            stop_threads = True
-            break
-
-
-def controlUnit(task_queue):
-    initialize_cameras()
+    threads = []
 
     try:
-        try:
-            # t1 = go(restriction_handler, task_queue)
-            # t2 = go(attendence_handler, task_queue)
-            t3 = go(car_identification_handler)
+        print("Starting All Services...")
 
-            # t1.join()
-            # t2.join()
-            t3.join()
-        except KeyboardInterrupt:
-          print("exit0")
-        except Exception as e:
-            print(e)
+        # --- Thread 1: Attendance (Socket Server + Cam 1) ---
+        t_attendance = threading.Thread(
+            target=run_attendance_service,
+            # Arguments must match your run_attendance_service definition
+            args=(stop_event, caps, CAMERA_INDICES, app_insight, HOST_IP, PORT),
+            name="AttendanceThread"
+        )
+        # threads.append(t_attendance)
+
+        # --- Thread 2: Restriction/Security (Cam 2) ---
+        t_restriction = threading.Thread(
+            target=run_restriction_service,
+            args=(stop_event, caps, CAMERA_INDICES, app_insight, task_queue),
+            name="RestrictionThread"
+        )
+        # threads.append(t_restriction)
+
+        # --- Thread 3: Car Identification (Cam 0) ---
+        t_car = threading.Thread(
+            target=run_car_service,
+            args=(stop_event, caps, CAMERA_INDICES),
+            name="CarThread"
+        )
+        # threads.append(t_car)
+
+        # --- Start All Threads ---
+        # for t in threads:
+        #     t.start()
+        # t_car.start()
+        # t_attendance.start()
+        t_restriction.start()
+        
+
+        
+        print("System Running. Press Ctrl+C to stop.")
+        while True:
+            # We keep the main thread alive to catch KeyboardInterrupt
+            time.sleep(1)
 
     except KeyboardInterrupt:
-        print("exit 0")
+        print("\nStopping all services...")
+        stop_event.set() # Signal all threads to stop
 
     finally:
-        for cap in caps:
-            cap.release()
-            cv2.destroyAllWindows()
-        print("Camera resources released")
+        print("Waiting for threads to join...")
+        # for t in threads:
+        #     t.join()
+        
+                # t_car.join()
+        # t_attendance.join()
+        t_restriction.join()
+        
+        print("Releasing resources...")
+        if caps:
+            for cap in caps:
+                cap.release()
+        cv2.destroyAllWindows()
+        print("System Shutdown Complete.")
 
-
-controlUnit(task_queue=Queue())
+if __name__ == "__main__":
+    main()
