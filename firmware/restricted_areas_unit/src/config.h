@@ -9,6 +9,19 @@
 // sample rate for the system
 #define SAMPLE_RATE 16000
 
+// --- Door control hardware ---
+// 12V solenoid is driven through a 5V relay module
+#define DOOR_RELAY_PIN GPIO_NUM_32
+#define DOOR_RELAY_ACTIVE_LEVEL LOW   // set to HIGH if your relay is active-high
+#define DOOR_RELAY_IDLE_LEVEL HIGH
+// Exit button (press to unlock locally)
+#define DOOR_EXIT_BUTTON_PIN GPIO_NUM_33
+#define DOOR_EXIT_BUTTON_ACTIVE_LEVEL LOW // button to GND with pull-up
+// Override button is on the main control unit only (opens this door remotely)
+#define DOOR_OVERRIDE_BUTTON_PIN -1
+// Door pulse length
+#define DOOR_UNLOCK_MS 3000
+
 // --- FIX 1: UNCOMMENT THIS so it uses the Digital Mic ---
 #define USE_I2S_MIC_INPUT
 
@@ -35,7 +48,7 @@
 #define GPIO_TRANSMIT_BUTTON 23
 
 // Which transport do you want to use?
-// --- FIX 3: UNCOMMENT THIS for Walkie Talkie mode ---
+// --- Enable ESP-NOW intercom mode ---
 #define USE_ESP_NOW
 
 // On which wifi channel (1-11) should ESP-Now transmit?

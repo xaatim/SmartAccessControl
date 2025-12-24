@@ -14,6 +14,10 @@ private:
   Transport *m_transport;
   IndicatorLed *m_indicator_led;
   OutputBuffer *m_output_buffer;
+  uint32_t m_unlock_until_ms = 0;
+  void lock_door();
+  void unlock_door_for_ms(uint32_t ms);
+  void handle_local_buttons();
 
 public:
   Application();
