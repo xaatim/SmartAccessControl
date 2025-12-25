@@ -13,8 +13,8 @@ DETECTION_INTERVAL = 15
 def load_known_embeddings():
     try:
         # Windows paths
-        embeddings_path = "data/face_embeddings.npy"
-        labels_path = "data/labels.npy"
+        embeddings_path = "/home/hatim/Documents/Github/SmartAccessControl/data/face_embeddings.npy"
+        labels_path = "/home/hatim/Documents/Github/SmartAccessControl/data/labels.npy"
 
         # Linux paths (commented out)
         # embeddings_path = "/home/hatim/Documents/Github/myFyp/Sherlock_Robot_v0.x/Models/face_embeddings.npy"
