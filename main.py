@@ -11,7 +11,6 @@ from src.camera_utils import initialize_cameras
 from src.attendance_service import run_attendance_service 
 from src.restriction_service import run_restriction_service  
 from src.car_service import run_car_service                  
-from src.parking_monitor_service import run_parking_yolo_world
 
 # --- Config ---
 HOST_IP = '0.0.0.0'
@@ -70,16 +69,13 @@ def main():
             name="CarThread"
         )
         
-        t_parking = threading.Thread(
-        target=run_parking_yolo_world, 
-        args=(stop_event, caps, CAMERA_INDICES))
+
         # threads.append(t_car)
 
         # --- Start All Threads ---
         # for t in threads:
         #     t.start()
-        t_car.start()
-        # t_parking.start()
+        # t_car.start()
         # t_attendance.start()
         # t_restriction.start()
         
@@ -99,8 +95,7 @@ def main():
         # for t in threads:
         #     t.join()
         
-        t_car.join()z
-        # t_parking.join()
+        # t_car.join()
         # t_attendance.join()
         # t_restriction.join()
         
