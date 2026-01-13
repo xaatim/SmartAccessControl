@@ -1,3 +1,4 @@
+import queue
 import threading
 import time
 from queue import Queue
@@ -10,7 +11,8 @@ from src.camera_utils import initialize_cameras
 # Assuming you have this file from our previous steps
 from src.attendance_service import run_attendance_service 
 from src.restriction_service import run_restriction_service  
-from src.car_service import run_car_service                  
+from src.car_service import run_car_service
+from src.socketio import socketio_client                  
 
 # --- Config ---
 HOST_IP = '0.0.0.0'
@@ -18,7 +20,8 @@ PORT = 65432
 NUM_CAMERAS = 3
 # Mapping: [Car_Cam, Attendance_Cam, Security_Cam]
 # Your old code used index 0 for Car, 1 for Attendance, 2 for Restriction
-CAMERA_INDICES = [0, 1, 2] 
+CAMERA_INDICES = [0, 2] 
+express_client = socketio_client()
 
 def main():
     colorama.init()
@@ -41,7 +44,7 @@ def main():
     task_queue = Queue() 
 
     threads = []
-
+    mode = express_client.get_mode()
     try:
         print("Starting All Services...")
 
@@ -57,7 +60,7 @@ def main():
         # --- Thread 2: Restriction/Security (Cam 2) ---
         t_restriction = threading.Thread(
             target=run_restriction_service,
-            args=(stop_event, caps, CAMERA_INDICES, app_insight, task_queue),
+            args=(stop_event, caps, CAMERA_INDICES, app_insight, task_queue ,express_client),
             name="RestrictionThread"
         )
         # threads.append(t_restriction)
@@ -65,7 +68,7 @@ def main():
         # --- Thread 3: Car Identification (Cam 0) ---
         t_car = threading.Thread(
             target=run_car_service,
-            args=(stop_event, caps, CAMERA_INDICES),
+            args=(stop_event, caps, CAMERA_INDICES,express_client,task_queue),
             name="CarThread"
         )
         
@@ -75,9 +78,11 @@ def main():
         # --- Start All Threads ---
         # for t in threads:
         #     t.start()
-        # t_car.start()
+        
+
+        t_car.start()
+        t_restriction.start()
         # t_attendance.start()
-        # t_restriction.start()
         
 
         
@@ -95,9 +100,11 @@ def main():
         # for t in threads:
         #     t.join()
         
-        # t_car.join()
+
+        t_car.join()
+        t_restriction.join()
         # t_attendance.join()
-        # t_restriction.join()
+
         
         print("Releasing resources...")
         if caps:

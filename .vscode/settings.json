@@ -1,0 +1,11 @@
+{
+  "ROS2.distro": "humble",
+  "python.autoComplete.extraPaths": [
+    "/home/hatim/.cache/yay/ros2-humble/src/install/lib/python3.13/dist-packages",
+    "/opt/ros/humble/lib/python3.13/site-packages"
+  ],
+  "python.analysis.extraPaths": [
+    "/home/hatim/.cache/yay/ros2-humble/src/install/lib/python3.13/dist-packages",
+    "/opt/ros/humble/lib/python3.13/site-packages"
+  ]
+}

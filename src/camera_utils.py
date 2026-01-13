@@ -33,7 +33,7 @@ def handle_camera_failure(cap, cam_index, stop_event=None):
             return None
 
         print(Fore.WHITE + f"Testing camera index {cam_index} (Attempt {trials+1}/30)")
-        new_cap = cv2.VideoCapture(cam_index, cv2.CAP_DSHOW)
+        new_cap = cv2.VideoCapture(cam_index)
 
         if new_cap.isOpened():
             new_cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)

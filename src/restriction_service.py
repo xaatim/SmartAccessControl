@@ -1,20 +1,28 @@
 import cv2
 import time
+
+from src.socketio import socketio_client
 from .recognition import process_detected_face
 from .camera_utils import handle_camera_failure
 from .door_control import open_remote_door  # <--- Door Control Import
 
-def run_restriction_service(stop_event, caps, camera_indices, app_insight, task_queue):
-    print(">>> Restriction/Security Service Started (Cam 2)")
-    cam_idx = camera_indices[0]
+def run_restriction_service(stop_event, caps, camera_indices, app_insight, task_queue, express_client:socketio_client):
     
-    last_alert_time = 0
-    
-    # --- Door Control Timers ---
-    last_door_open_time = 0
-    door_cooldown_seconds = 5  # Wait 5 seconds before opening again
+      cam_idx = camera_indices[1]
+      print(f">>> Restriction/Security Service Started ({cam_idx})")
+      
+      last_alert_time = 0
+      
+      # --- Door Control Timers ---
+      last_door_open_time = 0
+      door_cooldown_seconds = 5  # Wait 5 seconds before opening again
 
-    while not stop_event.is_set():
+      while not stop_event.is_set():
+        mode = express_client.get_mode()
+        if mode != "live_frame":
+          time.sleep(0.5)
+          continue
+        
         if len(caps) <= cam_idx:
             print(f"Error: Restriction Camera Index {cam_idx} out of range.")
             time.sleep(5)
@@ -55,9 +63,10 @@ def run_restriction_service(stop_event, caps, camera_indices, app_insight, task_
                     open_remote_door()
                     last_door_open_time = current_time
 
-        cv2.imshow("Security Feed", frame)
+        # cv2.imshow("Security Feed", frame)
+        express_client.send_frames(frame)
         if cv2.waitKey(1) & 0xFF == ord('q'):
             stop_event.set()
             break
-            
-    print("Restriction Service Stopped.")
+              
+      print("Restriction Service Stopped.")
