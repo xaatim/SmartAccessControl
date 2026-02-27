@@ -10,7 +10,7 @@ from .camera_utils import handle_camera_failure
 from .vehicle_db import vehicle_db         # <--- DB
 from .parking_hardware import parking_gate   # <--- HARDWARE
 
-
+MODE = "car_Identification"
 def run_car_service(stop_event, caps, camera_indices, express_client: socketio_client, task_queue):
     
         print(">>> Car Identification Service Started (Cam 0)")
@@ -26,7 +26,7 @@ def run_car_service(stop_event, caps, camera_indices, express_client: socketio_c
         while not stop_event.is_set():
           
             current_mode = express_client.get_mode()
-            if current_mode != "rec_frames":
+            if current_mode != MODE:
               time.sleep(0.5) 
               continue
             
@@ -83,7 +83,7 @@ def run_car_service(stop_event, caps, camera_indices, express_client: socketio_c
                         if current_time - last_alert_time > DETECTION_INTERVAL:
                             # save_alert_image(frame, task_queue)
                             last_alert_time = current_time
-                            express_client.send_alert(frame)
+                            express_client.send_alert(frame,MODE)
                     last_detected_plate = detected_plate
 
             # Reset state if the deque is empty (Car left the frame)
