@@ -224,6 +224,12 @@ python main.py
 
 ---
 
+## Future Works
+
+* **Smart Parking Monitor:** Integration of a real-time parking slot monitoring module. This update will utilize AI-driven object detection via wide-angle cameras to track lot occupancy. Registered users will be able to log into the Beam Robotics dashboard to view live availability and the exact locations of free parking slots before they even pass the ALPR gate.
+
+---
+
 ## Contributor
 
 **Hatim Ahmed Hassan** *Lead Developer & System Architect* Universiti Tun Hussein Onn Malaysia (UTHM)
@@ -232,6 +238,7 @@ python main.py
 
 This project is licensed under the MIT License. See the `LICENSE` file for details.
 
-```
 
-```
+
+
+
