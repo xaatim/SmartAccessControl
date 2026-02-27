@@ -9,7 +9,7 @@ class socketio_client():
 
         self.image_sub = None
         self.mode = "restriction"
-        
+
         self.io = socketio.Client(reconnection=True, reconnection_delay=0)
         self.serialNo = os.getenv("serialNo")
         self.robotKey = os.getenv("robotKey")
@@ -42,26 +42,26 @@ class socketio_client():
             if current_time - self.last_frame_time < 0.06:
                 return
             self.last_frame_time = current_time
-            
+
             try:
                 encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 60]
-                _, buf = cv2.imencode('.jpg', recieved_frame,encode_param)  
+                _, buf = cv2.imencode('.jpg', recieved_frame, encode_param)
                 self.io.emit('robot:frame', buf.tobytes())
             except Exception:
                 pass
 
-    def send_alert(self, recieved_frame):
+    def send_alert(self, recieved_frame, mode: str):
         if True:
             try:
                 _, buf = cv2.imencode('.jpg', recieved_frame)
-                self.io.emit('robot:alert', buf.tobytes())
+                result = {"frame": buf.tobytes(), "mode": mode}
+                self.io.emit('robot:alert', result)
             except Exception:
                 pass
 
     def on_mode_switch(self, data):
-            print(f"recieved Switch Command: {data}")
-            self.mode = data
-            
-            
+        print(f"recieved Switch Command: {data}")
+        self.mode = data
+
     def get_mode(self):
         return self.mode
