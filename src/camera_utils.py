@@ -2,17 +2,25 @@ import cv2
 import time
 from colorama import Fore
 
-def initialize_cameras(num_cameras):
+
+def initialize_cameras(camera_ids):
     caps = []
     try:
-        for i in range(num_cameras):
-            cap = cv2.VideoCapture(i,cv2.CAP_V4L2)
+        for cam_id in camera_ids:
+            print(Fore.CYAN + f"Opening Virtual Camera {cam_id}...")
+            # We enforce V4L2 backend for Linux compatibility
+            cap = cv2.VideoCapture(cam_id, cv2.CAP_V4L2)
+            
             cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
             cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+            
+            if not cap.isOpened():
+                print(Fore.RED + f"WARNING: Camera {cam_id} failed to open!")
+            
             caps.append(cap)
         return caps
     except Exception as e:
-        print(f"Error initializing cameras: {e}")
+        print(Fore.RED + f"Error initializing cameras: {e}")
         return []
 
 def handle_camera_failure(cap, cam_index, stop_event=None):
