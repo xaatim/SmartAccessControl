@@ -1,1 +1,1 @@
-serialNo
+last_alert_time
