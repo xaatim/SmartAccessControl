@@ -2,22 +2,22 @@
 #include <WiFi.h>
 
 // --- CONFIGURATION ---
-const char* WIFI_SSID = "Unkown";
-const char* WIFI_PASS = "kkkkkkkk"; // <--- DOUBLE CHECK THIS!
+const char* WIFI_SSID = "Catiiqi_2.4G";
+const char* WIFI_PASS = "26252423"; // <--- DOUBLE CHECK THIS!
 
 // IP Address of the computer running the Python script
-const char* SERVER_HOST = "10.42.230.136"; 
+const char* SERVER_HOST = "192.168.0.138"; 
 const int SERVER_PORT = 65432;
 
 // --- PINS ---
-const int BUTTON_PIN = 9;     
-const int GREEN_LED = 6;  
-const int RED_LED = 7;    
+const int BUTTON_PIN = 23;     
+const int GREEN_LED = 12;  
+const int RED_LED = 13;    
 
 // --- BETTER WIFI CONNECTION LOGIC ---
 void connectToWiFi() {
   Serial.println("\n--- Connecting to WiFi ---");
-  WiFi.mode(WIFI_STA);
+  
   WiFi.begin(WIFI_SSID, WIFI_PASS);
   
   int attempts = 0;
@@ -121,6 +121,8 @@ void setup() {
 
 void loop() {
   if (digitalRead(BUTTON_PIN) == LOW) { // Button Pressed
+    Serial.println("Btn Pressed");
+  
     delay(50); // Debounce
     if (digitalRead(BUTTON_PIN) == LOW) {
       
