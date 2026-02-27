@@ -20,7 +20,8 @@ PORT = 65432
 NUM_CAMERAS = 3
 # Mapping: [Car_Cam, Attendance_Cam, Security_Cam]
 # Your old code used index 0 for Car, 1 for Attendance, 2 for Restriction
-CAMERA_INDICES = [0, 2] 
+VIRTUAL_CAMERA_IDS = [9, 10, 11]
+
 express_client = socketio_client()
 
 def main():
@@ -29,66 +30,62 @@ def main():
     # 1. AI Initialization
     print("Initializing InsightFace...")
     app_insight = FaceAnalysis(name='antelopev2', allowed_modules=['detection', 'recognition'])
-    app_insight.prepare(ctx_id=-1)
+    app_insight.prepare(ctx_id=0, det_size=(640, 640))
 
     # 2. Camera Initialization
-    print("Initializing Cameras...")
-    caps = initialize_cameras(NUM_CAMERAS)
-    if not caps or len(caps) < NUM_CAMERAS:
-        print("CRITICAL: Not enough cameras found.")
-        # If testing with fewer cameras, comment out the return
-        # return 
+    print(f"Initializing Virtual Cameras: {VIRTUAL_CAMERA_IDS}")
+    caps = initialize_cameras(VIRTUAL_CAMERA_IDS)
+    
+    # Check if we have all cameras
+    if not caps or len(caps) < len(VIRTUAL_CAMERA_IDS):
+        print("CRITICAL: Not enough cameras found. Is FFmpeg running?")
+        # You might want to return here, or continue with what you have
 
     # 3. Thread Control
     stop_event = threading.Event()
     task_queue = Queue() 
 
-    threads = []
-    mode = express_client.get_mode()
+    # --- SERVICE MAPPING ---
+    # caps[0] is Video 9  (Car)
+    # caps[1] is Video 10 (Attendance)
+    # caps[2] is Video 11 (Restriction)
+
+    # We create lists containing the INDEX in 'caps', NOT the hardware ID.
+    car_indices = [0]   # Uses caps[0]
+    att_indices = [1]   # Uses caps[1]
+    sec_indices = [2]   # Uses caps[2]
+
     try:
         print("Starting All Services...")
 
-        # --- Thread 1: Attendance (Socket Server + Cam 1) ---
+        # --- Thread 1: Attendance (Uses Virtual Cam 10) ---
         t_attendance = threading.Thread(
             target=run_attendance_service,
-            # Arguments must match your run_attendance_service definition
-            args=(stop_event, caps, CAMERA_INDICES, app_insight, HOST_IP, PORT),
+            args=(stop_event, caps, att_indices, app_insight, HOST_IP, PORT),
             name="AttendanceThread"
         )
-        # threads.append(t_attendance)
 
-        # --- Thread 2: Restriction/Security (Cam 2) ---
+        # --- Thread 2: Restriction (Uses Virtual Cam 11) ---
         t_restriction = threading.Thread(
             target=run_restriction_service,
-            args=(stop_event, caps, CAMERA_INDICES, app_insight, task_queue ,express_client),
+            args=(stop_event, caps, sec_indices, app_insight, task_queue, express_client),
             name="RestrictionThread"
         )
-        # threads.append(t_restriction)
 
-        # --- Thread 3: Car Identification (Cam 0) ---
+        # --- Thread 3: Car (Uses Virtual Cam 9) ---
         t_car = threading.Thread(
             target=run_car_service,
-            args=(stop_event, caps, CAMERA_INDICES,express_client,task_queue),
+            args=(stop_event, caps, car_indices, express_client, task_queue),
             name="CarThread"
         )
         
-
-        # threads.append(t_car)
-
-        # --- Start All Threads ---
-        # for t in threads:
-        #     t.start()
-        
-
-        t_car.start()
-        t_restriction.start()
-        # t_attendance.start()
-        
-
+        # Start all at once
+        # t_car.start()
+        # t_restriction.start()
+        t_attendance.start() 
         
         print("System Running. Press Ctrl+C to stop.")
         while True:
-            # We keep the main thread alive to catch KeyboardInterrupt
             time.sleep(1)
 
     except KeyboardInterrupt:
@@ -101,9 +98,9 @@ def main():
         #     t.join()
         
 
-        t_car.join()
-        t_restriction.join()
-        # t_attendance.join()
+        # t_car.join()
+        # t_restriction.join()
+        t_attendance.join()
 
         
         print("Releasing resources...")
