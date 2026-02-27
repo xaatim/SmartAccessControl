@@ -5,6 +5,8 @@ from src.save_alert_image import save_alert_image
 import time
 from colorama import Fore
 
+from src.socketio import socketio_client
+
 colorama.init()
 EMBEDDING_THRESHOLD = 0.7
 DETECTION_INTERVAL = 15
@@ -51,8 +53,7 @@ def recognize_face(face_embedding):
     return "Unknown", 0
 
 
-def process_detected_face(frame, face, task_queue, last_alert_time, purpose):
-    print("last time:", last_alert_time)
+def process_detected_face(frame, face, task_queue, last_alert_time, purpose , express_client:socketio_client|None):
     anomalyDetected = False
     bbox = face.bbox.astype(int)
     label, score = recognize_face(face.embedding)
@@ -75,6 +76,8 @@ def process_detected_face(frame, face, task_queue, last_alert_time, purpose):
         if purpose != "attendence":
             if current_time - last_alert_time > DETECTION_INTERVAL:
                 save_alert_image(frame, task_queue)
+                if express_client is not None:
+                    express_client.send_alert(frame, "restriction")
                 return current_time, anomalyDetected, label
 
     return last_alert_time, anomalyDetected, label
