@@ -1,14 +1,15 @@
+from re import M
 import cv2
 import time
 
 from src.socketio import socketio_client
-from .recognition import process_detected_face
+from .recognition import DETECTION_INTERVAL, process_detected_face
 from .camera_utils import handle_camera_failure
 from .door_control import open_remote_door  # <--- Door Control Import
-
+MODE = "restriction"
 def run_restriction_service(stop_event, caps, camera_indices, app_insight, task_queue, express_client:socketio_client):
     
-      cam_idx = camera_indices[1]
+      cam_idx = camera_indices[0]
       print(f">>> Restriction/Security Service Started ({cam_idx})")
       
       last_alert_time = 0
@@ -19,7 +20,7 @@ def run_restriction_service(stop_event, caps, camera_indices, app_insight, task_
 
       while not stop_event.is_set():
         mode = express_client.get_mode()
-        if mode != "live_frame":
+        if mode != MODE:
           time.sleep(0.5)
           continue
         
@@ -48,11 +49,13 @@ def run_restriction_service(stop_event, caps, camera_indices, app_insight, task_
         for face in faces:
             # We capture 'name' here instead of ignoring it with '_'
             last_alert_time, anomaly_detected, name = process_detected_face(
-                frame, face, task_queue, last_alert_time, purpose='authorization'
+                frame, face, task_queue, last_alert_time, purpose='authorization', express_client=express_client
             )
             
             if anomaly_detected:
-                print("!!! ALERT: Unauthorized Personnel Detected !!!")
+              ...
+                    
+                
             else:
                 # --- DOOR OPENING LOGIC ---
                 # 1. Check if name is valid (not Unknown) - though process_detected_face usually handles 'Unknown' as anomaly
