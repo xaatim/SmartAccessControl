@@ -139,6 +139,7 @@ void Application::loop() {
     handle_safety_button(); // Check Pin 32 (Override)
 
     if (digitalRead(GPIO_TRANSMIT_BUTTON)) {
+      Serial.println("Action: Transmitting Audio...");
       m_output->stop();
       m_input->start();
       
